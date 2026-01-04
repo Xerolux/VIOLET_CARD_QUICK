@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run build:*)",
+      "Bash(npx rollup:*)",
+      "Bash(build.bat)",
+      "Bash(cmd /c build.bat)",
+      "Bash(findstr:*)",
+      "Bash(powershell:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(del nul)"
+    ]
+  }
+}

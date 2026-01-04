@@ -1,0 +1,60 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Get version from tag
+        id: tag_name
+        run: |
+          echo "TAG_NAME=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: Release ${{ github.ref_name }}
+          body: |
+            ## What's Changed
+
+            See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details.
+
+            ## Installation
+
+            ### HACS (Recommended)
+            1. Open HACS in Home Assistant
+            2. Go to "Frontend"
+            3. Click "+" and search for "Violet Pool Card"
+            4. Click "Download"
+            5. Restart Home Assistant
+
+            ### Manual
+            1. Download `violet-pool-card.js` from the assets below
+            2. Copy to `config/www/violet-pool-card.js`
+            3. Add resource in Configuration → Lovelace Dashboards → Resources
+            4. Restart Home Assistant
+          files: |
+            dist/violet-pool-card.js
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
