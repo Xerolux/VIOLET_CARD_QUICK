@@ -25,7 +25,7 @@ interface LovelaceCardConfig {
   type: string;
   entity?: string;
   entities?: string[];
-  card_type: 'pump' | 'heater' | 'solar' | 'dosing' | 'overview' | 'compact';
+  card_type: 'pump' | 'heater' | 'solar' | 'dosing' | 'overview' | 'compact' | 'system';
   name?: string;
   icon?: string;
   show_state?: boolean;
@@ -53,9 +53,9 @@ export class VioletPoolCard extends LitElement {
       throw new Error('You need to define a card_type');
     }
 
-    // For overview card, entities are optional
+    // For overview and system card, entities might be optional or handled differently
     // For other cards, entity is required
-    if (config.card_type !== 'overview' && !config.entity) {
+    if (config.card_type !== 'overview' && config.card_type !== 'system' && !config.entity) {
       throw new Error('You need to define an entity');
     }
 
@@ -103,6 +103,8 @@ export class VioletPoolCard extends LitElement {
         return this.renderOverviewCard();
       case 'compact':
         return this.renderCompactCard();
+      case 'system':
+        return this.renderSystemCard();
       default:
         return html`
           <ha-card>
@@ -113,6 +115,68 @@ export class VioletPoolCard extends LitElement {
           </ha-card>
         `;
     }
+  }
+
+  private renderSystemCard(): TemplateResult {
+    // Helper to get nested card config
+    const getCardConfig = (type: string, entity: string, options: any = {}) => ({
+      ...this.config,
+      card_type: type,
+      entity,
+      ...options,
+      // System card styles overrides
+      style: undefined
+    });
+
+    const entities = this.config.entities || {};
+    // Fallback to searching standard entities if not provided in 'entities' map
+    // but typically system card expects a map in 'entities' or 'settings'
+    // For now, we'll try to guess if not provided, or use what's there.
+
+    // We expect config.entities to be an array or object.
+    // If it's a "system" card, it's better if the user provides a map:
+    // entities:
+    //   pump: switch.pump
+    //   heater: climate.heater
+
+    // Let's assume standard names if not provided
+    const pumpEntity = (entities as any).pump || 'switch.violet_pool_pump';
+    const heaterEntity = (entities as any).heater || 'climate.violet_pool_heater';
+    const solarEntity = (entities as any).solar || 'climate.violet_pool_solar';
+    const chlorineEntity = (entities as any).chlorine || 'switch.violet_pool_dos_1_cl';
+    const phEntity = (entities as any).ph_minus || 'switch.violet_pool_dos_2_phm';
+
+    return html`
+      <div class="system-card-container">
+        <!-- Top Section: Overview -->
+        <div class="system-header">
+           ${this.renderOverviewCard()}
+        </div>
+
+        <!-- Middle Section: Main Controls -->
+        <div class="system-grid">
+          <div class="grid-item">
+             <violet-pool-card .hass=${this.hass} .config=${getCardConfig('pump', pumpEntity, { show_runtime: true })}></violet-pool-card>
+          </div>
+          <div class="grid-item">
+             <violet-pool-card .hass=${this.hass} .config=${getCardConfig('heater', heaterEntity)}></violet-pool-card>
+          </div>
+          <div class="grid-item">
+             <violet-pool-card .hass=${this.hass} .config=${getCardConfig('solar', solarEntity)}></violet-pool-card>
+          </div>
+        </div>
+
+        <!-- Bottom Section: Dosing -->
+        <div class="system-dosing-grid">
+           <div class="grid-item">
+             <violet-pool-card .hass=${this.hass} .config=${getCardConfig('dosing', chlorineEntity, { dosing_type: 'chlorine', show_history: true })}></violet-pool-card>
+           </div>
+           <div class="grid-item">
+             <violet-pool-card .hass=${this.hass} .config=${getCardConfig('dosing', phEntity, { dosing_type: 'ph_minus', show_history: true })}></violet-pool-card>
+           </div>
+        </div>
+      </div>
+    `;
   }
 
   private renderPumpCard(): TemplateResult {
@@ -1019,9 +1083,35 @@ export class VioletPoolCard extends LitElement {
 
       ha-card {
         padding: 16px;
-        background: var(--card-background-color);
+        background: var(--card-background-color, white);
         border-radius: var(--ha-card-border-radius, 12px);
-        box-shadow: var(--ha-card-box-shadow, none);
+        box-shadow: var(--ha-card-box-shadow, 0 2px 2px 0 rgba(0,0,0,0.14), 0 1px 5px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.2));
+        transition: all 0.3s ease;
+      }
+
+      /* System Card Layout */
+      .system-card-container {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      .system-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 16px;
+      }
+
+      .system-dosing-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 16px;
+      }
+
+      @media (max-width: 600px) {
+        .system-grid, .system-dosing-grid {
+            grid-template-columns: 1fr;
+        }
       }
 
       .card-content {
@@ -1034,6 +1124,7 @@ export class VioletPoolCard extends LitElement {
         flex-direction: row;
         align-items: center;
         gap: 8px;
+        padding: 8px 12px;
       }
 
       .header {
@@ -1044,7 +1135,8 @@ export class VioletPoolCard extends LitElement {
 
       ha-icon {
         --mdc-icon-size: 24px;
-        color: var(--primary-color);
+        color: var(--primary-color, #03a9f4);
+        transition: color 0.3s ease;
       }
 
       .name {
@@ -1621,6 +1713,8 @@ export class VioletPoolCard extends LitElement {
         return 1;
       case 'overview':
         return 5;
+      case 'system':
+        return 10;
       default:
         return 3;
     }
