@@ -1,4 +1,4 @@
-## v0.1.0-alpha.1 – Violet Pool Card
+## v0.1.0-alpha.2 – Violet Pool Card
 
 🔴 **ALPHA RELEASE** - Experimental features, use with caution!
 
@@ -10,13 +10,14 @@
 - 🌐 Improve README: Fix badges & add bilingual structure (ea3e55c)
 - add-screenshots (c84ab5c)
 - Add screenshots to README.md (6a7d97a)
-- 📊 Feature Analysis: Market Research vs Top HACS Cards (33c66a6)
-- feature/ui-ux-overhaul (a7f40b5)
-- feat: Overhaul UI/UX with Modern/Luxury styles and System card (f522e64)
-- Add demo page and screenshot generation script (8061fc4)
 
 ### 🚀 Improvements | Verbesserungen
 
+- Resolve conflicts and optimize bundle size (1add116)
+- Resolve PR #15 merge conflicts and optimize bundle size (d8f138f)
+- Implement Premium UI themes (iOS/OneUI style) and optimize bundle size (2fcb805)
+- Update README.md (ca4d34d)
+- 📝 Release v0.1.0-alpha.1 - Update changelog and version (068a4c8)
 - update-to-violet-pool-card-and-screenshots (e49433b)
 - Update project to 'Violet Pool Card' and refresh documentation screenshots (01fd7d6)
 - Update package-lock.json (eaae0be)
@@ -28,17 +29,22 @@
 
 ### 🔧 Bug Fixes | Fehlerbehebungen
 
+- fix-pr-15-comments (18c4bcb)
+- Fix PR 15 issues: Configurable entities, CSS fixes, and Docs refactoring (6403ada)
 - 🌐 Improve README: Fix badges & add bilingual structure (ea3e55c)
 
 ### 📚 Documentation | Dokumentation
 
+- revert-readme (11ee510)
+- Revert README.md to previous version (f0787c8)
+- Fix PR 15 issues: Configurable entities, CSS fixes, and Docs refactoring (6403ada)
+- Update README.md (ca4d34d)
 - Update project to 'Violet Pool Card' and refresh documentation screenshots (01fd7d6)
 - improve-readme-badges (7ed69bb)
 - 🌐 Improve README: Fix badges & add bilingual structure (ea3e55c)
 - Update README.md (bdd83d3)
 - Add screenshots to README.md (6a7d97a)
 - 📖 README Update: Visual Editor Showcase (1a3da5d)
-- 📚 Phase C: Complete Documentation (8cb10ad)
 
 ---
 
@@ -86,4 +92,4 @@ Jeder Beitrag, egal wie klein, ist eine große Motivation! Vielen Dank! 🙏
 
 ---
 
-_Generated automatically by GitHub Actions on 2026-01-05 09:44:07 UTC_
+_Generated automatically by GitHub Actions on 2026-01-05 12:40:37 UTC_
