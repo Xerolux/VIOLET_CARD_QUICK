@@ -58,7 +58,17 @@ interface LovelaceCardConfig {
   double_tap_action?: any;
 }
 
-export interface VioletPoolCardConfig extends LovelaceCardConfig {}
+export interface VioletPoolCardConfig extends LovelaceCardConfig {
+  pump_entity?: string;
+  heater_entity?: string;
+  solar_entity?: string;
+  chlorine_entity?: string;
+  ph_minus_entity?: string;
+  ph_plus_entity?: string;
+  pool_temp_entity?: string;
+  ph_value_entity?: string;
+  orp_value_entity?: string;
+}
 
 @customElement('violet-pool-card')
 export class VioletPoolCard extends LitElement {
@@ -70,9 +80,9 @@ export class VioletPoolCard extends LitElement {
       throw new Error('You need to define a card_type');
     }
 
-    // For overview card, entities are optional
+    // For overview and system cards, single entity is optional
     // For other cards, entity is required
-    if (config.card_type !== 'overview' && !config.entity) {
+    if (config.card_type !== 'overview' && config.card_type !== 'system' && !config.entity) {
       throw new Error('You need to define an entity');
     }
 
@@ -178,11 +188,11 @@ export class VioletPoolCard extends LitElement {
   }
 
   private renderSystemCard(): TemplateResult {
-    // Default entities if not specified
-    const pumpEntity = 'switch.violet_pool_pump';
-    const heaterEntity = 'climate.violet_pool_heater';
-    const solarEntity = 'climate.violet_pool_solar';
-    const dosingEntity = 'switch.violet_pool_dos_1_cl';
+    // Determine entities from config or defaults
+    const pumpEntity = this.config.pump_entity || (this.config.entities && this.config.entities[0]) || 'switch.violet_pool_pump';
+    const heaterEntity = this.config.heater_entity || (this.config.entities && this.config.entities[1]) || 'climate.violet_pool_heater';
+    const solarEntity = this.config.solar_entity || (this.config.entities && this.config.entities[2]) || 'climate.violet_pool_solar';
+    const dosingEntity = this.config.chlorine_entity || (this.config.entities && this.config.entities[3]) || 'switch.violet_pool_dos_1_cl';
 
     // Helper to create config for sub-cards
     const createSubConfig = (type: string, entity: string, extra: any = {}): VioletPoolCardConfig | null => {
@@ -807,16 +817,26 @@ export class VioletPoolCard extends LitElement {
     const name = config.name || 'Pool Status';
 
     // Get all pool entities
-    const pumpEntity = this.hass.states['switch.violet_pool_pump'];
-    const heaterEntity = this.hass.states['climate.violet_pool_heater'];
-    const solarEntity = this.hass.states['climate.violet_pool_solar'];
-    const chlorineEntity = this.hass.states['switch.violet_pool_dos_1_cl'];
-    const phEntity = this.hass.states['switch.violet_pool_dos_2_phm'];
+    const pumpEntityId = this.config.pump_entity || (this.config.entities && this.config.entities[0]) || 'switch.violet_pool_pump';
+    const heaterEntityId = this.config.heater_entity || (this.config.entities && this.config.entities[1]) || 'climate.violet_pool_heater';
+    const solarEntityId = this.config.solar_entity || (this.config.entities && this.config.entities[2]) || 'climate.violet_pool_solar';
+    const chlorineEntityId = this.config.chlorine_entity || (this.config.entities && this.config.entities[3]) || 'switch.violet_pool_dos_1_cl';
+    const phEntityId = this.config.ph_minus_entity || (this.config.entities && this.config.entities[4]) || 'switch.violet_pool_dos_2_phm';
+
+    const pumpEntity = this.hass.states[pumpEntityId];
+    const heaterEntity = this.hass.states[heaterEntityId];
+    const solarEntity = this.hass.states[solarEntityId];
+    const chlorineEntity = this.hass.states[chlorineEntityId];
+    const phEntity = this.hass.states[phEntityId];
 
     // Get sensor values
-    const poolTempSensor = this.hass.states['sensor.violet_pool_temperature'];
-    const phSensor = this.hass.states['sensor.violet_pool_ph_value'];
-    const orpSensor = this.hass.states['sensor.violet_pool_orp_value'];
+    const poolTempSensorId = this.config.pool_temp_entity || (this.config.entities && this.config.entities[5]) || 'sensor.violet_pool_temperature';
+    const phSensorId = this.config.ph_value_entity || (this.config.entities && this.config.entities[6]) || 'sensor.violet_pool_ph_value';
+    const orpSensorId = this.config.orp_value_entity || (this.config.entities && this.config.entities[7]) || 'sensor.violet_pool_orp_value';
+
+    const poolTempSensor = this.hass.states[poolTempSensorId];
+    const phSensor = this.hass.states[phSensorId];
+    const orpSensor = this.hass.states[orpSensorId];
 
     const poolTemp = poolTempSensor ? parseFloat(poolTempSensor.state) : undefined;
     const phValue = phSensor ? parseFloat(phSensor.state) : undefined;
@@ -1255,14 +1275,34 @@ export class VioletPoolCard extends LitElement {
         color: var(--vpc-text);
       }
 
+      .outside-temp-display.blocked {
+        background: rgba(255, 152, 0, 0.1);
+        border: 1px solid #ff9800;
+      }
+
+      .warning-text {
+        color: #ff9800;
+        font-size: 12px;
+        margin-left: 4px;
+      }
+
+      .badge-secondary {
+        padding: 2px 8px;
+        border-radius: 8px;
+        font-size: 11px;
+        font-weight: 500;
+        background: var(--secondary-background-color);
+        color: var(--secondary-text-color);
+      }
+
       /* Animations */
       @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
       @keyframes pulse-glow { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
 
       .pump-running { animation: rotate 2s linear infinite; }
-      .heater-active, .dosing-active { animation: pulse-glow 2s ease-in-out infinite; color: #FF5722; }
+      .heater-active { animation: pulse-glow 2s ease-in-out infinite; color: #FF5722; }
       .solar-active { color: #ff9800; }
-      .dosing-active { color: #4caf50; }
+      .dosing-active { animation: pulse-glow 2s ease-in-out infinite; color: #4caf50; }
 
       /* Detailed Elements */
       .solar-temps { display: flex; flex-direction: column; gap: 8px; }

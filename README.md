@@ -128,41 +128,16 @@ lovelace:
 
 ## ⚙️ Konfiguration
 
-### Basis-Konfiguration
+Die detaillierte Konfigurationsreferenz wurde in eine eigene Datei ausgelagert.
 
-| Name | Typ | Standard | Beschreibung |
-|------|-----|----------|--------------|
-| `type` | string | **Erforderlich** | `custom:violet-pool-card` |
-| `entity` | string | **Erforderlich** | Entity ID (außer für overview) |
-| `card_type` | string | **Erforderlich** | `pump`, `heater`, `solar`, `dosing`, `overview`, `compact`, oder `system` |
-| `name` | string | Optional | Benutzerdefinierter Name für die Karte |
-| `icon` | string | Optional | Benutzerdefiniertes Icon (MDI) |
+👉 **[Hier klicken für die vollständige Konfigurations-Anleitung](CONFIG.md)**
 
-### Design-Optionen (Eingeschränkt)
-
-> Hinweis: Die Theme-Auswahl ist weiterhin verfügbar, aber visuelle Unterschiede sind minimal.
-
-| Name | Typ | Standard | Beschreibung |
-|------|-----|----------|--------------|
-| `size` | string | `medium` | Kartengröße: `small`, `medium`, `large`, oder `fullscreen` |
-| `theme` | string | `luxury` | Design-Theme (jetzt vereinheitlicht) |
-| `animation` | string | `smooth` | Animations-Level: `none`, `subtle`, `smooth`, oder `energetic` |
-
-### Anzeige-Optionen
-
-| Name | Typ | Standard | Beschreibung |
-|------|-----|----------|--------------|
-| `show_state` | boolean | `true` | Status-Badge anzeigen |
-| `show_detail_status` | boolean | `true` | Detaillierte Status-Info anzeigen |
-| `show_controls` | boolean | `true` | Kontroll-Slider/Buttons anzeigen |
-| `show_runtime` | boolean | `false` | Laufzeit-Zähler anzeigen (nur Pumpe) |
-| `show_history` | boolean | `false` | Dosier-Historie anzeigen (nur Dosierung) |
-
-### Dosier-Optionen
-
-| Name | Typ | Standard | Beschreibung |
-|------|-----|----------|--------------|
-| `dosing_type` | string | Auto-Erkennung | `chlorine`, `ph_minus`, `ph_plus`, oder `flocculant` |
+Die Anleitung enthält Details zu:
+*   Basis-Konfiguration
+*   Entitäts-Konfiguration (Neu!)
+*   Design-Optionen & Themes
+*   Anzeige-Optionen
+*   Erweiterte Anpassung
 
 ---
 
@@ -327,52 +302,11 @@ Siehe [VIOLET_CARD_EXAMPLES.yaml](VIOLET_CARD_EXAMPLES.yaml) für weitere Konfig
 
 ---
 
-## 🛠️ Entwicklung
+## 🛠️ Entwicklung & Mitwirken
 
-### Aus Quellcode bauen
+Informationen zur Entwicklung und wie Sie zum Projekt beitragen können, finden Sie in unserer Contributing-Guideline.
 
-```bash
-# Repository klonen
-git clone https://github.com/Xerolux/VIOLET_CARD_QUICK.git
-cd VIOLET_CARD_QUICK
-
-# Abhängigkeiten installieren
-npm install
-
-# Build
-npm run build
-
-# Entwicklung mit Auto-Reload
-npm run watch
-```
-
-### Entwicklungsserver
-
-```bash
-npm run serve
-# Card verfügbar unter http://localhost:5000/violet-pool-card.js
-```
-
-Zur Home Assistant Konfiguration für Entwicklung hinzufügen:
-
-```yaml
-lovelace:
-  resources:
-    - url: http://localhost:5000/violet-pool-card.js
-      type: module
-```
-
----
-
-## 🤝 Mitwirken
-
-Beiträge sind willkommen! Bitte erstelle gerne einen Pull Request.
-
-1. Fork das Repository
-2. Erstelle deinen Feature-Branch (`git checkout -b feature/amazing-feature`)
-3. Committe deine Änderungen (`git commit -m 'Add amazing feature'`)
-4. Push zum Branch (`git push origin feature/amazing-feature`)
-5. Öffne einen Pull Request
+👉 **[Hier klicken für die Entwickler-Dokumentation](CONTRIBUTING.md)**
 
 ---
 
@@ -529,41 +463,16 @@ lovelace:
 
 ## ⚙️ Configuration
 
-### Basic Configuration
+The detailed configuration reference has been moved to a separate file.
 
-| Name | Type | Default | Description |
-|------|------|---------|-------------|
-| `type` | string | **Required** | `custom:violet-pool-card` |
-| `entity` | string | **Required** | Entity ID (except for overview) |
-| `card_type` | string | **Required** | `pump`, `heater`, `solar`, `dosing`, `overview`, `compact`, or `system` |
-| `name` | string | Optional | Custom name for the card |
-| `icon` | string | Optional | Custom icon (MDI) |
+👉 **[Click here for the full Configuration Guide](CONFIG.md)**
 
-### Design Options (Limited)
-
-> Note: Theme selection is still available but visual differences are minimal.
-
-| Name | Type | Default | Description |
-|------|------|---------|-------------|
-| `size` | string | `medium` | Card size: `small`, `medium`, `large`, or `fullscreen` |
-| `theme` | string | `luxury` | Design theme (now unified) |
-| `animation` | string | `smooth` | Animation level: `none`, `subtle`, `smooth`, or `energetic` |
-
-### Display Options
-
-| Name | Type | Default | Description |
-|------|------|---------|-------------|
-| `show_state` | boolean | `true` | Show state badge |
-| `show_detail_status` | boolean | `true` | Show detailed status info |
-| `show_controls` | boolean | `true` | Show control sliders/buttons |
-| `show_runtime` | boolean | `false` | Show runtime counter (pump only) |
-| `show_history` | boolean | `false` | Show dosing history (dosing only) |
-
-### Dosing Options
-
-| Name | Type | Default | Description |
-|------|-----|---------|-------------|
-| `dosing_type` | string | Auto-detect | `chlorine`, `ph_minus`, `ph_plus`, or `flocculant` |
+The guide includes details on:
+*   Basic Configuration
+*   Entity Configuration (New!)
+*   Design Options & Themes
+*   Display Options
+*   Advanced Customization
 
 ---
 
@@ -728,52 +637,11 @@ See [VIOLET_CARD_EXAMPLES.yaml](VIOLET_CARD_EXAMPLES.yaml) for more configuratio
 
 ---
 
-## 🛠️ Development
+## 🛠️ Development & Contributing
 
-### Build from Source
+Information on development and how you can contribute to the project can be found in our Contributing Guideline.
 
-```bash
-# Clone repository
-git clone https://github.com/Xerolux/VIOLET_CARD_QUICK.git
-cd VIOLET_CARD_QUICK
-
-# Install dependencies
-npm install
-
-# Build
-npm run build
-
-# Development with auto-reload
-npm run watch
-```
-
-### Development Server
-
-```bash
-npm run serve
-# Card available at http://localhost:5000/violet-pool-card.js
-```
-
-Add to your Home Assistant configuration for development:
-
-```yaml
-lovelace:
-  resources:
-    - url: http://localhost:5000/violet-pool-card.js
-      type: module
-```
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+👉 **[Click here for the Developer Documentation](CONTRIBUTING.md)**
 
 ---
 
