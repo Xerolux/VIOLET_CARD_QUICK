@@ -1,0 +1,494 @@
+name: Release Card
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+      - 'v*.*.*-alpha.*'
+      - 'v*.*.*-beta.*'
+      - 'v*.*.*-rc.*'
+  release:
+    types: [published, prereleased, released]
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: |
+          Tag name for the release (Semantic Versioning 2.0.0)
+          Stable: v0.2.0, v1.0.0
+          Pre-releases: v0.3.0-alpha.1, v0.3.0-beta.1, v1.0.0-rc.1
+        required: true
+        type: string
+      release_type:
+        description: 'Release type'
+        required: true
+        type: choice
+        options:
+          - stable
+          - beta
+          - alpha
+          - draft
+        default: 'stable'
+      make_latest:
+        description: 'Mark as latest release'
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+jobs:
+  prepare-release:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+      is_prerelease: ${{ steps.version.outputs.is_prerelease }}
+      is_draft: ${{ steps.version.outputs.is_draft }}
+      release_type: ${{ steps.version.outputs.release_type }}
+      release-notes: ${{ steps.generate.outputs.release-notes }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Get version and detect release type
+        id: version
+        run: |
+          TAG="${{ github.event.release.tag_name || inputs.tag_name || github.ref_name }}"
+          VERSION="${TAG#v}"
+
+          # Auto-detect release type from tag
+          if [[ "$TAG" =~ -alpha ]]; then
+            RELEASE_TYPE="alpha"
+            IS_PRERELEASE=true
+            IS_DRAFT=false
+          elif [[ "$TAG" =~ -beta ]]; then
+            RELEASE_TYPE="beta"
+            IS_PRERELEASE=true
+            IS_DRAFT=false
+          elif [[ "$TAG" =~ -rc ]]; then
+            RELEASE_TYPE="rc"
+            IS_PRERELEASE=true
+            IS_DRAFT=false
+          else
+            RELEASE_TYPE="stable"
+            IS_PRERELEASE=false
+            IS_DRAFT=false
+          fi
+
+          # Override with manual input if provided
+          if [ "${{ inputs.release_type }}" = "draft" ]; then
+            IS_DRAFT=true
+            IS_PRERELEASE=false
+            RELEASE_TYPE="draft"
+          elif [ "${{ inputs.release_type }}" = "alpha" ]; then
+            IS_PRERELEASE=true
+            RELEASE_TYPE="alpha"
+          elif [ "${{ inputs.release_type }}" = "beta" ]; then
+            IS_PRERELEASE=true
+            RELEASE_TYPE="beta"
+          elif [ "${{ inputs.release_type }}" = "stable" ]; then
+            IS_PRERELEASE=false
+            RELEASE_TYPE="stable"
+          fi
+
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
+          echo "is_prerelease=$IS_PRERELEASE" >> $GITHUB_OUTPUT
+          echo "is_draft=$IS_DRAFT" >> $GITHUB_OUTPUT
+          echo "release_type=$RELEASE_TYPE" >> $GITHUB_OUTPUT
+
+          echo "📌 Release Info:"
+          echo "  Version: $VERSION"
+          echo "  Tag: $TAG"
+          echo "  Type: $RELEASE_TYPE"
+          echo "  Pre-release: $IS_PRERELEASE"
+          echo "  Draft: $IS_DRAFT"
+
+      - name: Validate tag format
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?$ ]]; then
+            echo "❌ Invalid tag format: $TAG"
+            echo "Expected format: v0.2.0, v0.2.1, v1.0.0 (Semantic Versioning 2.0.0)"
+            echo "Pre-release tags: v0.3.0-alpha.1, v0.3.0-beta.1, v1.0.0-rc.1"
+            exit 1
+          fi
+          echo "✅ Valid tag format: $TAG"
+
+      - name: Update version in package.json
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          npm version $VERSION --no-git-tag-version --allow-same-version
+          echo "✅ Updated package.json to $VERSION"
+
+      - name: Build
+        run: npm run build
+
+      - name: Parse commits since last release
+        id: commits
+        run: |
+          CURRENT_TAG="${{ steps.version.outputs.tag }}"
+
+          # Find previous stable release (exclude pre-releases)
+          PREV_TAG=$(git tag --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | grep -v "$CURRENT_TAG" | head -1)
+
+          if [ -z "$PREV_TAG" ]; then
+            echo "📝 No previous stable release found, using all commits"
+            COMMITS=$(git log --oneline --pretty=format:"- %s (%h)" | head -30)
+          else
+            echo "📝 Getting commits since $PREV_TAG to $CURRENT_TAG"
+            COMMITS=$(git log ${PREV_TAG}..HEAD --oneline --pretty=format:"- %s (%h)" 2>/dev/null || git log --oneline --pretty=format:"- %s (%h)" | head -30)
+          fi
+
+          # Categorize commits with better patterns
+          BUG_FIXES=$(echo "$COMMITS" | grep -iE "(\bfix\b|\bbug\b|\bpatch\b|hotfix|bugfix)" || echo "")
+          IMPROVEMENTS=$(echo "$COMMITS" | grep -iE "(\bimprove\b|\benhance\b|\bupdate\b|\brefactor\b|\boptimize\b)" || echo "")
+          NEW_FEATURES=$(echo "$COMMITS" | grep -iE "(\badd\b|\bfeat\b|\bfeature\b|\bnew\b)" || echo "")
+          DOCS=$(echo "$COMMITS" | grep -iE "(\bdoc\b|\bdocs\b|documentation|\breadme\b)" || echo "")
+          TESTS=$(echo "$COMMITS" | grep -iE "(\btest\b|\btests\b|\btesting\b)" || echo "")
+
+          echo "previous-tag=$PREV_TAG" >> $GITHUB_OUTPUT
+
+          echo "bug-fixes<<EOF" >> $GITHUB_OUTPUT
+          echo "$BUG_FIXES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+          echo "improvements<<EOF" >> $GITHUB_OUTPUT
+          echo "$IMPROVEMENTS" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+          echo "new-features<<EOF" >> $GITHUB_OUTPUT
+          echo "$NEW_FEATURES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+          echo "docs<<EOF" >> $GITHUB_OUTPUT
+          echo "$DOCS" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+          echo "tests<<EOF" >> $GITHUB_OUTPUT
+          echo "$TESTS" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Generate release notes
+        id: generate
+        run: |
+          RELEASE_TYPE="${{ steps.version.outputs.release_type }}"
+          VERSION="${{ steps.version.outputs.version }}"
+          TAG="${{ steps.version.outputs.tag }}"
+
+          # Release type badge
+          case "$RELEASE_TYPE" in
+            alpha)
+              TYPE_BADGE="🔴 **ALPHA RELEASE** - Experimental features, use with caution!"
+              ;;
+            beta)
+              TYPE_BADGE="🟡 **BETA RELEASE** - Testing phase, may contain bugs"
+              ;;
+            rc)
+              TYPE_BADGE="🟢 **RELEASE CANDIDATE** - Feature complete, final testing"
+              ;;
+            draft)
+              TYPE_BADGE="📝 **DRAFT RELEASE** - Work in progress"
+              ;;
+            *)
+              TYPE_BADGE="✅ **STABLE RELEASE**"
+              ;;
+          esac
+
+          # Get categorized commits
+          BUG_FIXES="${{ steps.commits.outputs.bug-fixes }}"
+          if [ -z "$BUG_FIXES" ]; then
+            BUG_FIXES="- Minor bug fixes and stability improvements"
+          fi
+
+          IMPROVEMENTS="${{ steps.commits.outputs.improvements }}"
+          if [ -z "$IMPROVEMENTS" ]; then
+            IMPROVEMENTS="- Performance improvements and code optimizations"
+          fi
+
+          NEW_FEATURES="${{ steps.commits.outputs.new-features }}"
+          if [ -z "$NEW_FEATURES" ]; then
+            NEW_FEATURES="- Enhanced Violet Pool Card functionality"
+          fi
+
+          DOCS="${{ steps.commits.outputs.docs }}"
+          TESTS="${{ steps.commits.outputs.tests }}"
+
+          # Generate changelog link
+          PREVIOUS_TAG="${{ steps.commits.outputs.previous-tag }}"
+          if [ -z "$PREVIOUS_TAG" ]; then
+            CHANGELOG_LINK="📋 Full changelog: Initial release"
+          else
+            CHANGELOG_URL="${{ github.server_url }}/${{ github.repository }}/compare/$PREVIOUS_TAG...$TAG"
+            CHANGELOG_LINK="📋 [Full changelog: $PREVIOUS_TAG...$TAG]($CHANGELOG_URL)"
+          fi
+
+          # Build release notes
+          {
+            echo "## $TAG – Violet Pool Card"
+            echo ""
+            echo "$TYPE_BADGE"
+            echo ""
+            if [ "$RELEASE_TYPE" != "stable" ]; then
+              echo "---"
+              echo ""
+            fi
+
+            if [ -n "$NEW_FEATURES" ]; then
+              echo "### ✨ New Features | Neue Funktionen"
+              echo ""
+              echo "$NEW_FEATURES"
+              echo ""
+            fi
+
+            if [ -n "$IMPROVEMENTS" ]; then
+              echo "### 🚀 Improvements | Verbesserungen"
+              echo ""
+              echo "$IMPROVEMENTS"
+              echo ""
+            fi
+
+            if [ -n "$BUG_FIXES" ]; then
+              echo "### 🔧 Bug Fixes | Fehlerbehebungen"
+              echo ""
+              echo "$BUG_FIXES"
+              echo ""
+            fi
+
+            if [ -n "$DOCS" ]; then
+              echo "### 📚 Documentation | Dokumentation"
+              echo ""
+              echo "$DOCS"
+              echo ""
+            fi
+
+            echo "---"
+            echo ""
+            echo "### 📦 Installation"
+            echo ""
+            echo "**HACS (Recommended):**"
+            echo "1. Open HACS in Home Assistant"
+            echo "2. Go to \"Frontend\""
+            echo "3. Click \"+\" and search for \"Violet Pool Card\""
+            echo "4. Click \"Download\""
+            echo "5. Restart Home Assistant"
+            echo ""
+            echo "**Manual:**"
+            echo "1. Download \`violet-pool-card.js\` from the assets below"
+            echo "2. Copy to \`config/www/violet-pool-card.js\`"
+            echo "3. Add resource in Configuration → Lovelace Dashboards → Resources"
+            echo "   - URL: \`/local/violet-pool-card.js\`"
+            echo "   - Type: \`JavaScript Module\`"
+            echo "4. Restart Home Assistant"
+            echo ""
+            echo "---"
+            echo ""
+            echo "$CHANGELOG_LINK"
+            echo ""
+            echo "---"
+            echo ""
+            echo "### ❤️ Support | Unterstützung"
+            echo ""
+            echo "If you find this card useful, consider supporting the developer:"
+            echo ""
+            echo "- ☕ **[Buy Me a Coffee](https://buymeacoffee.com/xerolux)**"
+            echo "- 🚗 **[Tesla Referral Code](https://ts.la/sebastian564489)**"
+            echo "- ⭐ **Star this repository**"
+            echo ""
+            echo "Every contribution, no matter how small, is a huge motivation! Thank you! 🙏"
+            echo ""
+            echo "Jeder Beitrag, egal wie klein, ist eine große Motivation! Vielen Dank! 🙏"
+            echo ""
+            echo "---"
+            echo ""
+            echo "### 💬 Feedback & Contributions"
+            echo ""
+            echo "- 🐛 **[Report a bug](https://github.com/${{ github.repository }}/issues/new?template=bug_report.md)**"
+            echo "- 💡 **[Request a feature](https://github.com/${{ github.repository }}/issues/new?template=feature_request.md)**"
+            echo ""
+            echo "---"
+            echo ""
+            echo "_Generated automatically by GitHub Actions on $(date +'%Y-%m-%d %H:%M:%S UTC')_"
+          } > temp_release_notes.md
+
+          echo "release-notes<<EOFNOTES" >> $GITHUB_OUTPUT
+          cat temp_release_notes.md >> $GITHUB_OUTPUT
+          echo "EOFNOTES" >> $GITHUB_OUTPUT
+
+          cat temp_release_notes.md
+
+      - name: Upload assets to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/violet-pool-card.js
+          tag_name: ${{ steps.version.outputs.tag }}
+          body: ${{ steps.generate.outputs.release-notes }}
+          draft: ${{ steps.version.outputs.is_draft == 'true' }}
+          prerelease: ${{ steps.version.outputs.is_prerelease == 'true' }}
+          make_latest: ${{ inputs.make_latest != false && steps.version.outputs.release_type == 'stable' }}
+
+  update-changelog:
+    needs: prepare-release
+    runs-on: ubuntu-latest
+    if: needs.prepare-release.outputs.is_draft != 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Update version in package.json
+        run: |
+          VERSION="${{ needs.prepare-release.outputs.version }}"
+          npm version $VERSION --no-git-tag-version --allow-same-version
+          echo "✅ Updated package.json to $VERSION"
+
+      - name: Update CHANGELOG.md
+        env:
+          RELEASE_NOTES: ${{ needs.prepare-release.outputs.release-notes }}
+          VERSION: ${{ needs.prepare-release.outputs.version }}
+          TAG: ${{ needs.prepare-release.outputs.tag }}
+        run: |
+          if [ ! -f CHANGELOG.md ]; then
+            echo "# Changelog" > CHANGELOG.md
+            echo "" >> CHANGELOG.md
+            echo "All notable changes to this project will be documented in this file." >> CHANGELOG.md
+            echo "" >> CHANGELOG.md
+          fi
+
+          # Prepare entry
+          {
+            echo "## [$VERSION] - $(date +'%Y-%m-%d')"
+            echo ""
+            echo "$RELEASE_NOTES"
+            echo ""
+            echo "---"
+            echo ""
+          } > temp_changelog_entry.md
+
+          # Insert after header
+          sed -i '/^All notable changes/r temp_changelog_entry.md' CHANGELOG.md
+
+          rm temp_changelog_entry.md
+          echo "✅ Updated CHANGELOG.md"
+
+      - name: Update RELEASE_NOTES.md
+        env:
+          RELEASE_NOTES: ${{ needs.prepare-release.outputs.release-notes }}
+        run: |
+          # This file contains ONLY the latest release
+          echo "$RELEASE_NOTES" > RELEASE_NOTES.md
+          echo "✅ Updated RELEASE_NOTES.md with latest release"
+
+      - name: Commit and push changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add CHANGELOG.md RELEASE_NOTES.md package.json
+
+          if git diff --cached --quiet; then
+            echo "ℹ️ No changes to commit"
+            exit 0
+          fi
+
+          git commit -m "📝 Release v${{ needs.prepare-release.outputs.version }} - Update changelog and version"
+          git push
+          echo "✅ Pushed changelog and version updates"
+
+  post-to-x:
+    needs: [prepare-release, update-changelog]
+    runs-on: ubuntu-latest
+    if: |
+      success() &&
+      needs.prepare-release.outputs.is_draft != 'true' &&
+      needs.prepare-release.outputs.release_type == 'stable'
+    steps:
+      - name: Generate X post
+        id: xpost
+        run: |
+          VERSION="${{ needs.prepare-release.outputs.version }}"
+          TAG="${{ needs.prepare-release.outputs.tag }}"
+          RELEASE_URL="https://github.com/${{ github.repository }}/releases/tag/$TAG"
+
+          {
+            echo "message<<EOFMSG"
+            echo "🎉 Violet Pool Card v$VERSION Released!"
+            echo ""
+            echo "✨ New features & improvements"
+            echo "🔧 Bug fixes & stability"
+            echo "📚 Better documentation"
+            echo ""
+            echo "🔗 Download: $RELEASE_URL"
+            echo ""
+            echo "❤️ Support:"
+            echo "☕ https://buymeacoffee.com/xerolux"
+            echo "🚗 https://ts.la/sebastian564489"
+            echo ""
+            echo "#HomeAssistant #PoolAutomation #VioletPool #SmartHome #OpenSource"
+            echo "EOFMSG"
+          } >> $GITHUB_OUTPUT
+
+      - name: Post to X (Twitter)
+        uses: ethomson/send-tweet-action@v1
+        continue-on-error: true
+        with:
+          status: ${{ steps.xpost.outputs.message }}
+          consumer-key: ${{ secrets.TWITTER_CONSUMER_API_KEY }}
+          consumer-secret: ${{ secrets.TWITTER_CONSUMER_API_SECRET }}
+          access-token: ${{ secrets.TWITTER_ACCESS_TOKEN }}
+          access-token-secret: ${{ secrets.TWITTER_ACCESS_TOKEN_SECRET }}
+
+  create-summary:
+    needs: [prepare-release, update-changelog]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Create job summary
+        run: |
+          VERSION="${{ needs.prepare-release.outputs.version }}"
+          TAG="${{ needs.prepare-release.outputs.tag }}"
+          TYPE="${{ needs.prepare-release.outputs.release_type }}"
+          IS_DRAFT="${{ needs.prepare-release.outputs.is_draft }}"
+
+          {
+            echo "## 🎉 Release Summary"
+            echo ""
+            echo "| Property | Value |"
+            echo "|----------|-------|"
+            echo "| **Version** | \`$VERSION\` |"
+            echo "| **Tag** | \`$TAG\` |"
+            echo "| **Type** | \`$TYPE\` |"
+            echo "| **Draft** | $IS_DRAFT |"
+            echo "| **Release** | [View Release](https://github.com/${{ github.repository }}/releases/tag/$TAG) |"
+            echo ""
+
+            if [ "$IS_DRAFT" = "true" ]; then
+              echo "⚠️ **This is a DRAFT release** - Review before publishing!"
+            elif [ "$TYPE" = "alpha" ] || [ "$TYPE" = "beta" ]; then
+              echo "⚠️ **This is a PRE-RELEASE** - Not for production use!"
+            else
+              echo "✅ **Stable release published successfully!**"
+            fi
+
+            echo ""
+            echo "### 📦 Artifacts"
+            echo "- \`dist/violet-pool-card.js\` - Card Javascript file"
+            echo ""
+            echo "### 📝 Documentation Updated"
+            echo "- ✅ CHANGELOG.md (cumulative history)"
+            echo "- ✅ RELEASE_NOTES.md (latest only)"
+            echo "- ✅ package.json (version)"
+          } >> $GITHUB_STEP_SUMMARY
