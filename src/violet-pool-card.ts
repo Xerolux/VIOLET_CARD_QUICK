@@ -2180,6 +2180,11 @@ export class VioletPoolCard extends LitElement {
       card_type: 'pump',
     };
   }
+
+  public static async getConfigElement() {
+    await import('./editor/violet-pool-card-editor');
+    return document.createElement('violet-pool-card-editor');
+  }
 }
 
 // Register card for card picker
