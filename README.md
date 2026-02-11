@@ -90,7 +90,7 @@ Die [Violet Pool Controller](https://github.com/Xerolux/violet-hass) Integration
 
 ### Manuell
 
-1. `violet-pool-card.js` vom [letzten Release](https://github.com/Xerolux/VIOLET_CARD_QUICK/releases) herunterladen
+1. `violet-pool-card.js` vom [letzten Release](https://github.com/Xerolux/violet-pool-card/releases) herunterladen
 2. Datei nach `config/www/violet-pool-card.js` kopieren
 3. Ressource in Home Assistant hinzufügen:
 
@@ -343,8 +343,8 @@ npm run serve        # Dev-Server auf localhost:5000
 
 ## Hilfe & Support
 
-- [GitHub Issues](https://github.com/Xerolux/VIOLET_CARD_QUICK/issues) — Fehlerberichte
-- [GitHub Discussions](https://github.com/Xerolux/VIOLET_CARD_QUICK/discussions) — Fragen & Diskussionen
+- [GitHub Issues](https://github.com/Xerolux/violet-pool-card/issues) — Fehlerberichte
+- [GitHub Discussions](https://github.com/Xerolux/violet-pool-card/discussions) — Fragen & Diskussionen
 - [Violet Pool Controller](https://github.com/Xerolux/violet-hass) — Haupt-Integration
 
 <div align="center">
@@ -397,7 +397,7 @@ A premium Lovelace card for the [Violet Pool Controller](https://github.com/Xero
 
 ### Manual Installation
 
-1. Download `violet-pool-card.js` from the [latest release](https://github.com/Xerolux/VIOLET_CARD_QUICK/releases)
+1. Download `violet-pool-card.js` from the [latest release](https://github.com/Xerolux/violet-pool-card/releases)
 2. Copy to `config/www/violet-pool-card.js`
 3. Add the resource:
 
